@@ -1,0 +1,49 @@
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: "websecure"
+          scheme: "https"
+  websecure:
+    address: ":443"
+
+api:
+  dashboard: true
+
+providers:
+  kubernetesCRD: {}
+  kubernetesIngress: {}
+
+metrics:
+  prometheus: {}
+
+tracing:
+  jaeger:
+    samplingServerUrl: "http://jaeger-agent.jaeger:5778/sampling"
+    localAgentHostPort:  "jaeger-agent.jaeger:6831"
+
+certificatesResolvers:
+  default:
+    acme:
+      email: ""
+      tlsChallenge: {}
+
+  mypki:
+    vault:
+      url: "http://vault.vault.svc.cluster.local:8200"
+      token: "root"
+      role: "enterprise-demo"
+
+authSources:
+  oidcSource:
+    oidc:
+      issuer: "https://<KEYCLOAK_URL>/auth/realms/traefiklabs"
+      clientID: "demo-app"
+      clientSecret: ""
+
+
+  jwtSource:
+    jwt:
+      jwksUrl: "https://<KEYCLOAK_URL>/auth/realms/traefiklabs/protocol/openid-connect/certs"
