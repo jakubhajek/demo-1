@@ -54,7 +54,9 @@ spec:
         name: "%s-session"
         path: "/"
         secret: powpowpowpowpowpowpowpow
-        expiry: 86400
+        expiry: 120
+        sliding: false # https://doc.traefik.io/traefik-enterprise/middlewares/oidc/#sessionsliding
+        refresh: false # https://doc.traefik.io/traefik-enterprise/middlewares/oidc/#sessionrefresh
       forwardHeaders:
         X-Traefik-Group: groups
       claims: Contains(`groups`, `admin`)
