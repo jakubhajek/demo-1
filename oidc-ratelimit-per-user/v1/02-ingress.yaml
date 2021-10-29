@@ -1,0 +1,116 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-tls
+  namespace: app
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`app.sie.demo.traefiklabs.tech`)
+      services:
+        # Redirecting traffic back to Traefik to process limits
+        - name: tee-proxy-svc-internal 
+          namespace: traefikee
+          port: 80
+      middlewares:
+        - name: oidc-auth
+  tls:
+    certResolver: default
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-tls-test-user-1
+  namespace: app
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      # Matching using HostHeader and the extracted X-Traefik-Username
+      match: Host(`app.sie.demo.traefiklabs.tech`) && Headers(`X-Traefik-Username`, `testuser1`)
+      services:
+        - name: app-v1
+          namespace: app
+          port: 80
+      middlewares:
+        - name: ratelimit-1
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app-tls-test-user-2
+  namespace: app
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`app.sie.demo.traefiklabs.tech`) && Headers(`X-Traefik-Username`, `testuser2`) 
+      services:
+        - name: app-v1
+          namespace: app
+          port: 80
+      middlewares:
+        - name: ratelimit-2
+
+## Rate limit
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ratelimit-1
+  namespace: app
+spec:
+  plugin:
+    rateLimit:
+      average: 1
+      burst: 1
+      sourceCriterion:
+        requestHeaderName: X-Traefik-Username
+---
+
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ratelimit-2
+  namespace: app
+spec:
+  plugin:
+    rateLimit:
+      average: 100
+      burst: 100
+      sourceCriterion:
+        requestHeaderName: X-Traefik-Username
+
+## Open ID connect
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: oidc-auth
+  namespace: app
+spec:
+  plugin:
+    oidcAuth:
+      source: oidcSource
+      scopes:
+        - openid
+      redirectUrl: "/callback"
+      logoutUrl: "/logout"
+      session:
+        name: "%s-session"
+        path: "/"
+        secret: powpowpowpowpowpowpowpow
+        expiry: 86400
+      forwardHeaders:
+        X-Traefik-Groups: groups
+        X-Traefik-Username: preferred_username # Extracting the username as header
+        X-Traefik-Email: email
+      claims: Contains(`groups`, `admin`)
+
